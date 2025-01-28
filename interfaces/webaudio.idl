@@ -1,12 +1,17 @@
 // GENERATED CONTENT - DO NOT EDIT
 // Content was automatically extracted by Reffy into webref
 // (https://github.com/w3c/webref)
-// Source: Web Audio API (https://webaudio.github.io/web-audio-api/)
+// Source: Web Audio API 1.1 (https://webaudio.github.io/web-audio-api/)
 
 enum AudioContextState {
     "suspended",
     "running",
     "closed"
+};
+
+enum AudioContextRenderSizeCategory {
+    "default",
+    "hardware"
 };
 
 callback DecodeErrorCallback = undefined (DOMException error);
@@ -20,6 +25,7 @@ interface BaseAudioContext : EventTarget {
     readonly attribute double currentTime;
     readonly attribute AudioListener listener;
     readonly attribute AudioContextState state;
+    readonly attribute unsigned long renderQuantumSize;
     [SameObject, SecureContext]
     readonly attribute AudioWorklet audioWorklet;
     attribute EventHandler onstatechange;
@@ -27,8 +33,8 @@ interface BaseAudioContext : EventTarget {
     AnalyserNode createAnalyser ();
     BiquadFilterNode createBiquadFilter ();
     AudioBuffer createBuffer (unsigned long numberOfChannels,
-                              unsigned long length,
-                              float sampleRate);
+                                unsigned long length,
+                                float sampleRate);
     AudioBufferSourceNode createBufferSource ();
     ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
     ChannelSplitterNode createChannelSplitter (
@@ -39,12 +45,12 @@ interface BaseAudioContext : EventTarget {
     DynamicsCompressorNode createDynamicsCompressor ();
     GainNode createGain ();
     IIRFilterNode createIIRFilter (sequence<double> feedforward,
-                                   sequence<double> feedback);
+                                    sequence<double> feedback);
     OscillatorNode createOscillator ();
     PannerNode createPanner ();
     PeriodicWave createPeriodicWave (sequence<float> real,
-                                     sequence<float> imag,
-                                     optional PeriodicWaveConstraints constraints = {});
+                                        sequence<float> imag,
+                                        optional PeriodicWaveConstraints constraints = {});
     ScriptProcessorNode createScriptProcessor(
         optional unsigned long bufferSize = 0,
         optional unsigned long numberOfInputChannels = 2,
@@ -76,6 +82,7 @@ interface AudioContext : BaseAudioContext {
     [SecureContext] readonly attribute (DOMString or AudioSinkInfo) sinkId;
     [SecureContext] readonly attribute AudioRenderCapacity renderCapacity;
     attribute EventHandler onsinkchange;
+    attribute EventHandler onerror;
     AudioTimestamp getOutputTimestamp ();
     Promise<undefined> resume ();
     Promise<undefined> suspend ();
@@ -92,6 +99,7 @@ dictionary AudioContextOptions {
     (AudioContextLatencyCategory or double) latencyHint = "interactive";
     float sampleRate;
     (DOMString or AudioSinkOptions) sinkId;
+    (AudioContextRenderSizeCategory or unsigned long) renderSizeHint = "default";
 };
 
 dictionary AudioSinkOptions {
@@ -150,6 +158,7 @@ dictionary OfflineAudioContextOptions {
     unsigned long numberOfChannels = 1;
     required unsigned long length;
     required float sampleRate;
+    (AudioContextRenderSizeCategory or unsigned long) renderSizeHint = "default";
 };
 
 [Exposed=Window]
@@ -629,6 +638,7 @@ interface AudioWorkletGlobalScope : WorkletGlobalScope {
     readonly attribute unsigned long long currentFrame;
     readonly attribute double currentTime;
     readonly attribute float sampleRate;
+    readonly attribute unsigned long renderQuantumSize;
     readonly attribute MessagePort port;
 };
 
