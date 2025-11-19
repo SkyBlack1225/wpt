@@ -7,7 +7,7 @@
   <meta charset="utf-8">
   <title>CSS Grid Test: Masonry layout fragmentation</title>
   <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
-  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
   <link rel="match" href="masonry-fragmentation-002-ref.html">
   <style>
 html,body {
@@ -31,9 +31,8 @@ wrapper {
   background-color: rgba(10,100,10,.5);
 }
 .grid {
-  display: grid;
+  display: grid-lanes;
   grid-template-columns: 10px 15px 20px;
-  grid-template-rows: masonry;
   border: 1px solid;
   gap: 2px;
 }

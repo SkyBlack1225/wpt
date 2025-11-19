@@ -11,9 +11,15 @@ def main(request, response):
         try:
             headers = request.GET.get_list(b"header")
             for header in headers:
-              header_parts = header.split(b":")
-              response.headers.set(header_parts[0], header_parts[1])
+                header_parts = header.split(b":")
+                response.headers.set(header_parts[0], header_parts[1])
         except ValueError:
             pass
 
-    response.content = "HTTP Response Headers"
+    if b"Content-Type" not in response.headers:
+        response.headers.set(b"Content-Type", "text/plain")
+
+    if b"content" in request.GET:
+        response.content = request.GET.first(b"content")
+    else:
+        response.content = "HTTP Response Headers"

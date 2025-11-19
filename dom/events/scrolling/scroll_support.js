@@ -14,16 +14,127 @@ async function waitForScrollendEvent(test, target, timeoutMs = 500) {
   return waitForEvent("scrollend", test, target, timeoutMs);
 }
 
+async function waitForScrollendEventNoTimeout(target) {
+  return new Promise((resolve) => {
+    target.addEventListener("scrollend", resolve);
+  });
+}
+
+// Waits until a rAF callback with no "scroll" event in the last 200ms.
+function waitForDelayWithoutScrollEvent(eventTarget) {
+  const TIMEOUT_IN_MS = 200;
+
+  return new Promise(resolve => {
+    let lastScrollEventTime = performance.now();
+
+    const scrollListener = () => {
+      lastScrollEventTime = performance.now();
+    };
+    eventTarget.addEventListener('scroll', scrollListener);
+
+    const tick = () => {
+      if (performance.now() - lastScrollEventTime > TIMEOUT_IN_MS) {
+        eventTarget.removeEventListener('scroll', scrollListener);
+        resolve();
+        return;
+      }
+      requestAnimationFrame(tick); // wait another frame
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// Waits for the end of scrolling. Uses the "scrollend" event if available.
+// Otherwise, fall backs to waitForDelayWithoutScrollEvent().
+function waitForScrollEndFallbackToDelayWithoutScrollEvent(eventTargets) {
+  return new Promise(resolve => {
+    if (!Array.isArray(eventTargets)) {
+      eventTargets = [eventTargets];
+    }
+    let listeners = [];
+    const cleanup = () => {
+      for (const [eventTarget, eventName, listener] of listeners) {
+        eventTarget.removeEventListener(eventName, listener);
+      }
+      listeners = [];
+    }
+    const addListener = (eventTarget, eventName, listener) => {
+      listeners.push([eventTarget, eventName, listener]);
+      eventTarget.addEventListener(eventName, listener);
+    }
+    if (window.onscrollend !== undefined) {
+      // If scrollend is supported, wait for the first scrollend event.
+      for (const eventTarget of eventTargets) {
+        addListener(eventTarget, 'scrollend', () => {
+          cleanup();
+          resolve(eventTarget);
+        });
+      }
+    } else {
+      // Otherwise, wait for the first scroll event, then wait until that
+      // scroller finishes scrolling.
+      for (const eventTarget of eventTargets) {
+        addListener(eventTarget, 'scroll', async () => {
+          cleanup();
+          await waitForDelayWithoutScrollEvent(eventTarget);
+          resolve(eventTarget);
+        });
+      }
+    }
+  });
+}
+
+// Waits for the end of scrolling, but resolves after the given timeout if no
+// scroll event occurs.
+function waitForScrollEndOrTimeout(eventTarget, timeout) {
+  const rafTimeout = new Promise(resolve => {
+    const startTime = performance.now();
+    const tick = () => {
+      if (performance.now() - startTime >= timeout) {
+        resolve();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+
+  return Promise.race([
+    waitForScrollEndFallbackToDelayWithoutScrollEvent(eventTarget),
+    rafTimeout
+  ]);
+}
+
 async function waitForPointercancelEvent(test, target, timeoutMs = 500) {
   return waitForEvent("pointercancel", test, target, timeoutMs);
 }
 
+// Resets the scroll position to (0,0).  If a scroll is required, then the
+// promise is not resolved until the scrollend event is received.
+async function waitForScrollReset(test, scroller, x = 0, y = 0) {
+  return new Promise(resolve => {
+    if (scroller.scrollLeft == x && scroller.scrollTop == y) {
+      resolve();
+    } else {
+      const eventTarget =
+        scroller == document.scrollingElement ? document : scroller;
+      scroller.scrollTo(x, y);
+      waitForScrollendEventNoTimeout(eventTarget).then(resolve);
+    }
+  });
+}
+
 async function createScrollendPromiseForTarget(test,
                                                target_div,
-                                               timeoutMs = 500) {
+                                               timeoutMs = 500,
+                                               targetIsRoot = false) {
   return waitForScrollendEvent(test, target_div, timeoutMs).then(evt => {
     assert_false(evt.cancelable, 'Event is not cancelable');
-    assert_false(evt.bubbles, 'Event targeting element does not bubble');
+    if (targetIsRoot) {
+      assert_true(evt.bubbles, 'Event targeting element does not bubble');
+    } else {
+      assert_false(evt.bubbles, 'Event targeting element does not bubble');
+    }
   });
 }
 
@@ -42,8 +153,8 @@ async function verifyScrollStopped(test, target_div) {
   const y = target_div.scrollTop;
   return new Promise(resolve => {
     test.step_timeout(() => {
-      assert_equals(x, target_div.scrollLeft);
-      assert_equals(y, target_div.scrollTop);
+      assert_equals(target_div.scrollLeft, x);
+      assert_equals(target_div.scrollTop, y);
       resolve();
     }, unscaled_pause_time_in_ms);
   });
@@ -92,13 +203,13 @@ function waitForCompositorCommit() {
   });
 }
 
-// Please don't remove this. This is necessary for chromium-based browsers.
-// This shouldn't be necessary if the test harness deferred running the tests
-// until after paint holding. This can be a no-op on user-agents that do not
-// have a separate compositor thread.
+// Please don't remove this. This is necessary for chromium-based browsers. It
+// can be a no-op on user-agents that do not have a separate compositor thread.
+// TODO(crbug.com/1509054): This shouldn't be necessary if the test harness
+// deferred running the tests until after paint holding.
 async function waitForCompositorReady() {
   const animation =
-      document.body.animate({ opacity: [ 1, 1 ] }, {duration: 1 });
+      document.body.animate({ opacity: [ 0, 1 ] }, {duration: 1 });
   return animation.finished;
 }
 
@@ -199,7 +310,7 @@ function touchScrollInTarget(pixels_to_scroll, target, direction, pause_time_in_
 
 // Trigger fling by doing pointerUp right after pointerMoves.
 function touchFlingInTarget(pixels_to_scroll, target, direction) {
-  touchScrollInTarget(pixels_to_scroll, target, direction, 0 /* pause_time */);
+  return touchScrollInTarget(pixels_to_scroll, target, direction, 0 /* pause_time */);
 }
 
 function mouseActionsInTarget(target, origin, delta, pause_time_in_ms = 100) {
@@ -234,4 +345,44 @@ function conditionHolds(condition, error_message = 'Condition is not true anymor
     }
     tick(0);
   });
+}
+
+function scrollElementDown(element, scroll_amount) {
+  let x = 0;
+  let y = 0;
+  let delta_x = 0;
+  let delta_y = scroll_amount;
+  let actions = new test_driver.Actions()
+  .scroll(x, y, delta_x, delta_y, {origin: element});
+  return  actions.send();
+}
+
+function scrollElementLeft(element, scroll_amount) {
+  let x = 0;
+  let y = 0;
+  let delta_x = scroll_amount;
+  let delta_y = 0;
+  let actions = new test_driver.Actions()
+  .scroll(x, y, delta_x, delta_y, {origin: element});
+  return  actions.send();
+}
+
+async function scrollElementByKeyboard(key) {
+  const KEY_CODE_MAP = {
+    'ArrowLeft':  '\uE012',
+    'ArrowUp':    '\uE013',
+    'ArrowRight': '\uE014',
+    'ArrowDown':  '\uE015',
+  };
+
+  if (!KEY_CODE_MAP.hasOwnProperty(key)) {
+    return Promise.reject(`Invalid key for scrollElementByKeyboard: ${key}`);
+  }
+  const code = KEY_CODE_MAP[key];
+  for (let i = 0; i < 10; i++) {
+    await new test_driver.Actions()
+      .keyDown(code)
+      .keyUp(code)
+      .send();
+  }
 }

@@ -1,4 +1,9 @@
 def main(request, response):
-  cookie_header = request.headers.get(b"Cookie", b"")
+  # Set the cors enabled headers.
+  origin = request.headers.get(b"Origin")
+  if origin:
+      response.headers.set(b"Content-Type", b"text/plain")
+      response.headers.set(b"Access-Control-Allow-Origin", origin)
+      response.headers.set(b"Access-Control-Allow-Credentials", 'true')
 
-  return (200, [], cookie_header)
+  return request.headers.get(b"Cookie", b"")

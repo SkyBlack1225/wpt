@@ -60,31 +60,26 @@ function assert_cookie(origin, obj, name, value, present) {
 // Remove the cookie named |name| from |origin|, then set it on |origin| anew.
 // If |origin| matches `self.origin`, also assert (via `document.cookie`) that
 // the cookie was correctly removed and reset.
-function create_cookie(origin, name, value, extras) {
+async function create_cookie(origin, name, value, extras) {
   alert("Create_cookie: " + origin + "/cookies/resources/drop.py?name=" + name);
-  return credFetch(origin + "/cookies/resources/drop.py?name=" + name)
-    .then(_ => {
-      if (origin == self.origin)
-        assert_dom_cookie(name, value, false);
-    })
-    .then(_ => {
-      return credFetch(origin + "/cookies/resources/set.py?" + name + "=" + value + ";path=/;" + extras)
-        .then(_ => {
-          if (origin == self.origin)
-            assert_dom_cookie(name, value, true);
-        });
-    });
+  await credFetch(origin + "/cookies/resources/drop.py?name=" + name);
+  if (origin == self.origin)
+    assert_dom_cookie(name, value, false);
+  await credFetch(origin + "/cookies/resources/set.py?" + name + "=" + value + ";path=/;" + extras);
+  if (origin == self.origin)
+    assert_dom_cookie(name, value, true);
 }
 
 //
 // Prefix-specific test helpers
 //
+window.dom_prefix_counter = 0;
 function set_prefixed_cookie_via_dom_test(options) {
   promise_test(t => {
     var name = options.prefix + "prefixtestcookie";
     erase_cookie_from_js(name, options.params);
     t.add_cleanup(() => erase_cookie_from_js(name, options.params));
-    var value = "" + Math.random();
+    var value = "foo" + ++window.dom_prefix_counter;
     document.cookie = name + "=" + value + ";" + options.params;
 
     assert_dom_cookie(name, value, options.shouldExistInDOM);
@@ -95,10 +90,11 @@ function set_prefixed_cookie_via_dom_test(options) {
   }, options.title);
 }
 
+window.http_prefix_counter = 0;
 function set_prefixed_cookie_via_http_test(options) {
   promise_test(t => {
     var name = options.prefix + "prefixtestcookie";
-    var value = "" + Math.random();
+    var value = "bar" + ++window.http_prefix_counter;
 
     t.add_cleanup(() => {
       var cookie = name + "=0;expires=" + new Date(0).toUTCString() + ";" +

@@ -279,6 +279,10 @@
     /**
      * Create a keyDown event for the current default key source
      *
+     * To send special keys, send the respective key's codepoint,
+     * as defined by `WebDriver
+     * <https://w3c.github.io/webdriver/#keyboard-actions>`_.
+     *
      * @param {String} key - Key to press
      * @param {String?} sourceName - Named key source to use or null for the default key source
      * @returns {Actions}
@@ -290,7 +294,11 @@
     },
 
     /**
-     * Create a keyDown event for the current default key source
+     * Create a keyUp event for the current default key source
+     *
+     * To send special keys, send the respective key's codepoint,
+     * as defined by `WebDriver
+     * <https://w3c.github.io/webdriver/#keyboard-actions>`_.
      *
      * @param {String} key - Key to release
      * @param {String?} sourceName - Named key source to use or null for the default key source

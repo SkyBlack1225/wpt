@@ -15,14 +15,15 @@ interface PerformanceNavigationTiming : PerformanceResourceTiming {
     readonly        attribute DOMHighResTimeStamp  loadEventEnd;
     readonly        attribute NavigationTimingType type;
     readonly        attribute unsigned short       redirectCount;
+    readonly        attribute DOMHighResTimeStamp  criticalCHRestart;
+    readonly        attribute NotRestoredReasons?  notRestoredReasons;
     [Default] object toJSON();
 };
 
 enum NavigationTimingType {
     "navigate",
     "reload",
-    "back_forward",
-    "prerender"
+    "back_forward"
 };
 
 [Exposed=Window]

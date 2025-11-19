@@ -7,7 +7,7 @@
   <meta charset="utf-8">
   <title>CSS Grid Test: Grid axis fragmentation with column masonry layout</title>
   <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
-  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
   <link rel="match" href="masonry-fragmentation-003-ref.html">
   <style>
 html,body {
@@ -28,8 +28,9 @@ wrapper {
 }
 
 .grid {
-  display: grid;
-  grid: 20px auto 30px / masonry;
+  display: grid-lanes;
+  masonry-direction: row;
+  grid: 20px auto 30px / none;
   border: solid;
   border-width: 3px 1px 7px 5px;
   padding: 1px 3px 5px 7px;

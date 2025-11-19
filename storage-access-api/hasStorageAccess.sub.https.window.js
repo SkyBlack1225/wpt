@@ -1,20 +1,36 @@
 // META: script=helpers.js
+// META: script=/resources/testdriver.js
+// META: script=/resources/testdriver-vendor.js
+// META: script=/cookies/resources/cookie-helper.sub.js
 'use strict';
 
 const {testPrefix, topLevelDocument} = processQueryParams();
 
 // Common tests to run in all frames.
-test(() => {
+promise_test(async () => {
   assert_not_equals(document.hasStorageAccess, undefined);
 }, "[" + testPrefix + "] document.hasStorageAccess() should exist on the document interface");
 
 promise_test(async () => {
   const hasAccess = await document.hasStorageAccess();
   if (topLevelDocument || testPrefix.includes('same-origin')) {
-    assert_true(hasAccess, "Access should be granted in top-level frame or same-origin iframe by default.");
-  } else {
-    assert_false(hasAccess, "Access should not be granted in secure cross-origin iframes.");
+    assert_true(hasAccess, "Access should be granted in top-level frame or iframe that is in first-party context by default.");
+    return;
   }
+  if (CanAccessCookiesViaJS()) {
+    // Nothing to test here, since cross-site cookies are not blocked.
+    // See https://github.com/privacycg/storage-access/issues/162.
+    return;
+  }
+  if (testPrefix == "ABA") {
+    assert_false(
+        hasAccess,
+        "Access should not be granted in secure same-origin iframe that is in a third-party context by default when cookies are blocked.");
+    return;
+  }
+  assert_false(
+      hasAccess,
+      "Access should not be granted in secure cross-origin iframes.");
 }, "[" + testPrefix + "] document.hasStorageAccess() should not be allowed by default unless in top-level frame or same-origin iframe.");
 
 promise_test(async (t) => {
@@ -37,14 +53,14 @@ if (topLevelDocument) {
   // Create a test with a single-child same-origin iframe.
   RunTestsInIFrame("resources/hasStorageAccess-iframe.https.html?testCase=same-origin-frame");
 
-  // Create a test with a single-child cross-origin iframe.
-  RunTestsInIFrame("https://{{domains[www]}}:{{ports[https][0]}}/storage-access-api/resources/hasStorageAccess-iframe.https.html?testCase=cross-origin-frame");
+  // Create a test with a single-child cross-site iframe.
+  RunTestsInIFrame("https://{{hosts[alt][]}}:{{ports[https][0]}}/storage-access-api/resources/hasStorageAccess-iframe.https.html?testCase=cross-site-frame");
 
   // Validate the nested-iframe scenario where the same-origin frame containing
   // the tests is not the first child.
   RunTestsInNestedIFrame("resources/hasStorageAccess-iframe.https.html?testCase=nested-same-origin-frame");
 
-  // Validate the nested-iframe scenario where the cross-origin frame containing
+  // Validate the nested-iframe scenario where the cross-site frame containing
   //  the tests is not the first child.
-  RunTestsInNestedIFrame("https://{{domains[www]}}:{{ports[https][0]}}/storage-access-api/resources/hasStorageAccess-iframe.https.html?testCase=nested-cross-origin-frame");
+  RunTestsInNestedIFrame("https://{{hosts[alt][]}}:{{ports[https][0]}}/storage-access-api/resources/hasStorageAccess-iframe.https.html?testCase=nested-cross-site-frame");
 }

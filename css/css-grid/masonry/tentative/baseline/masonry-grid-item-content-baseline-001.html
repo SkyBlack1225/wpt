@@ -17,14 +17,15 @@ html,body {
 
 .grid {
   float: left;
-  display: grid;
-  grid: masonry / repeat(4, auto);
+  display: grid-lanes;
+  grid: none / repeat(4, auto);
   border: 2px solid;
   padding: 1px;
   margin: 1px;
 }
 .c {
-  grid: repeat(4, auto) / masonry;
+  grid: repeat(4, auto) / none;
+  masonry-direction: row;
 }
 
 span {

@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # No interactive frontend during docker build
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -13,6 +13,7 @@ RUN apt-get -qqy update \
     curl \
     dbus-x11 \
     earlyoom \
+    fonts-noto \
     fluxbox \
     gdebi \
     git \
@@ -26,11 +27,12 @@ RUN apt-get -qqy update \
     libunwind8 \
     libxcb-shape0-dev \
     locales \
-    openjdk-8-jre-headless \
+    openjdk-17-jre-headless \
     pulseaudio \
     python3 \
     python3-dev \
     python3-pip \
+    python3-venv \
     software-properties-common \
     qemu-kvm \
     tzdata \
@@ -39,7 +41,7 @@ RUN apt-get -qqy update \
     wget \
     xvfb
 
-# python3.6 is not available by default in new versions of Ubuntu.
+# Ensure all Python versions are available
 RUN apt-add-repository -y ppa:deadsnakes/ppa
 
 # Ensure a `python` binary exists
@@ -64,7 +66,6 @@ RUN apt-get -qqy install \
 RUN apt-get -y autoremove
 
 RUN pip install --upgrade pip
-RUN pip install virtualenv
 
 ENV TZ "UTC"
 RUN echo "${TZ}" > /etc/timezone \
@@ -76,10 +77,16 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
+# Setup on-demand pulseaudio with a "Dummy Output" audio sink.
+# This simply creates a file containing autospawn=yes at
+# /run/pulseaudio-enable-autospawn, linked from /etc/pulse/client.conf.d/
+RUN /etc/init.d/pulseaudio-enable-autospawn start
+
 RUN useradd test \
          --shell /bin/bash  \
          --create-home \
   && usermod -a -G sudo test \
+  && usermod -a -G kvm test \
   && usermod -a -G libvirt test \
   && usermod -a -G libvirt-qemu test \
   && echo 'ALL ALL = (ALL) NOPASSWD: ALL' >> /etc/sudoers \
